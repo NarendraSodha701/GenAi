@@ -1,21 +1,18 @@
 package com.genai.chat.DTO;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-public class ForecastResponse {
+public class SunResponse {
     private String city;
     private String sunrise;
     private String sunset;
-    @JsonProperty("enhanced_message")
-    private String enhancedMessage;
+    private String message;
 
-    public ForecastResponse() {}
+    public SunResponse() {}
 
-    public ForecastResponse(String city, String sunrise, String sunset, String enhancedMessage) {
+    public SunResponse(String city, String sunrise, String sunset, String message) {
         this.city = city;
         this.sunrise = sunrise;
         this.sunset = sunset;
-        this.enhancedMessage = enhancedMessage;
+        this.message = message;
     }
 
     public String getCity() { return city; }
@@ -24,6 +21,6 @@ public class ForecastResponse {
     public void setSunrise(String sunrise) { this.sunrise = sunrise; }
     public String getSunset() { return sunset; }
     public void setSunset(String sunset) { this.sunset = sunset; }
-    public String getEnhancedMessage() { return enhancedMessage; }
-    public void setEnhancedMessage(String enhancedMessage) { this.enhancedMessage = enhancedMessage; }
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
 }

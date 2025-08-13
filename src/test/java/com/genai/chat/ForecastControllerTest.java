@@ -2,7 +2,7 @@ package com.genai.chat;
 
 import com.genai.chat.Controller.ChatController;
 import com.genai.chat.DTO.ForecastResponse;
-import com.genai.chat.Service.ForecastService;
+import com.genai.chat.Service.ChatAiAssistant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -13,22 +13,50 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class ForecastControllerTest {
-    private ForecastService forecastService;
+    private ChatAiAssistant chatAiAssistant;
     private ChatController controller;
 
     @BeforeEach
     void setUp() {
-        forecastService = mock(ForecastService.class);
-        controller = new ChatController(forecastService);
+        chatAiAssistant = mock(ChatAiAssistant.class);
+        controller = new ChatController();
+        // Use reflection to inject the mock
+        try {
+            var field = ChatController.class.getDeclaredField("chatAiAssistant");
+            field.setAccessible(true);
+            field.set(controller, chatAiAssistant);
+        } catch (Exception e) {
+            fail("Failed to inject mock: " + e.getMessage());
+        }
     }
 
     @Test
-    void testValidCityReturnsOk() {
-        ForecastResponse resp = new ForecastResponse("Berlin", "2023-11-01T07:12:00+05:30", "2023-11-01T17:49:00+05:30", "AI message");
-        when(forecastService.getForecast("Berlin")).thenReturn(resp);
+    void testValidCityReturnsOkWithAiResponse() {
+        String mockAiResponse = "{\"city\":\"Berlin\",\"sunrise\":\"2023-11-01T07:12:00+05:30\",\"sunset\":\"2023-11-01T17:49:00+05:30\",\"message\":\"Tomorrow in Berlin, the sun will rise at 7:12 AM IST and set at 5:49 PM IST. Enjoy the stunning golden hour!\"}";
+        when(chatAiAssistant.getSunriseSunsetInfo("Berlin")).thenReturn(mockAiResponse);
+
         ResponseEntity<?> response = controller.getSunForecast("Berlin");
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertInstanceOf(ForecastResponse.class, response.getBody());
+
+        ForecastResponse forecastResponse = (ForecastResponse) response.getBody();
+        assertEquals("Berlin", forecastResponse.getCity());
+        assertEquals("2023-11-01T07:12:00+05:30", forecastResponse.getSunrise());
+        assertEquals("2023-11-01T17:49:00+05:30", forecastResponse.getSunset());
+    }
+
+    @Test
+    void testValidCityWithNonJsonAiResponse() {
+        String mockAiResponse = "Tomorrow in Paris, the sun will rise at 7:12 AM IST and set at 5:49 PM IST. Enjoy the stunning golden hour!";
+        when(chatAiAssistant.getSunriseSunsetInfo("Paris")).thenReturn(mockAiResponse);
+
+        ResponseEntity<?> response = controller.getSunForecast("Paris");
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertInstanceOf(ForecastResponse.class, response.getBody());
+
+        ForecastResponse forecastResponse = (ForecastResponse) response.getBody();
+        assertEquals("Paris", forecastResponse.getCity());
+        assertEquals(mockAiResponse, forecastResponse.getEnhancedMessage());
     }
 
     @Test
@@ -39,19 +67,25 @@ public class ForecastControllerTest {
     }
 
     @Test
-    void testServiceThrowsIllegalArgumentException() {
-        when(forecastService.getForecast("InvalidCity")).thenThrow(new IllegalArgumentException("Invalid city name"));
-        ResponseEntity<?> response = controller.getSunForecast("InvalidCity");
+    void testNullCityReturnsBadRequest() {
+        ResponseEntity<?> response = controller.getSunForecast(null);
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Invalid city name", response.getBody());
+        assertEquals("City name must not be empty", response.getBody());
     }
 
     @Test
-    void testServiceThrowsOtherException() {
-        when(forecastService.getForecast("Berlin")).thenThrow(new RuntimeException("Unexpected error"));
-        ResponseEntity<?> response = controller.getSunForecast("Berlin");
+    void testWhitespaceCityReturnsBadRequest() {
+        ResponseEntity<?> response = controller.getSunForecast("   ");
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("City name must not be empty", response.getBody());
+    }
+
+    @Test
+    void testAiServiceThrowsException() {
+        when(chatAiAssistant.getSunriseSunsetInfo("ErrorCity")).thenThrow(new RuntimeException("AI service error"));
+        ResponseEntity<?> response = controller.getSunForecast("ErrorCity");
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-        assertEquals("Internal error", response.getBody());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().toString().contains("Internal error"));
     }
 }
-

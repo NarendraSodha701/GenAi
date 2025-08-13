@@ -1,40 +1,27 @@
 package com.genai.chat.Service;
 
-
-import com.genai.chat.DTO.ForecastResponse;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.agent.tool.P;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 @Service
-
 public class ForecastService {
-    private final RestTemplate restTemplate;
-    private final GeocodingService geocodingService;
-    private final LangChain4jService langChain4jService;
 
-    public ForecastService(RestTemplate restTemplate, GeocodingService geocodingService, LangChain4jService langChain4jService) {
+    private final RestTemplate restTemplate;
+
+    public ForecastService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
-        this.geocodingService = geocodingService;
-        this.langChain4jService = langChain4jService;
     }
 
-    public ForecastResponse getForecast(String city) {
-        GeocodeResult geo = geocodingService.geocode(city);
-        if (geo == null) throw new IllegalArgumentException("Invalid city name");
-        String url = String.format("https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&daily=sunrise,sunset&timezone=IST", geo.getLat(), geo.getLon());
-        String apiResponse = restTemplate.getForObject(url, String.class);
-        // api response parsing
-        JSONObject obj = new JSONObject(apiResponse);
-        JSONObject daily = obj.getJSONObject("daily");
-        JSONArray sunriseArr = daily.getJSONArray("sunrise");
-        JSONArray sunsetArr = daily.getJSONArray("sunset");
-        String sunrise = sunriseArr.length() > 0 ? sunriseArr.getString(0) : null;
-        String sunset = sunsetArr.length() > 0 ? sunsetArr.getString(0) : null;
-        if (sunrise == null || sunset == null) throw new IllegalArgumentException("No sunrise/sunset data found");
-        String enhanced = langChain4jService.generateMessage(city, sunrise, sunset);
-        return new ForecastResponse(city, sunrise, sunset, enhanced);
+    private final String OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&daily=sunrise,sunset&timezone=%s";
+
+    @Tool("This method will fetch daily sunrise and sunset time for given city")
+    public String getSunTimes(@P("it is a latitude of given city") double lat,
+                              @P("it is a longitude of given city") double lon,
+                              @P("It's is timezone of the city , if not passed default is IST") String tz) {
+        String url = String.format(OPEN_METEO_URL, lat, lon, tz);
+        return restTemplate.getForObject(url, String.class);
     }
 
 }

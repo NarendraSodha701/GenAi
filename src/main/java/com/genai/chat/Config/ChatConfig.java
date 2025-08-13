@@ -1,11 +1,12 @@
-package Config;
+package com.genai.chat.Config;
 
-
+import dev.langchain4j.model.azure.AzureOpenAiChatModel;
+import dev.langchain4j.model.chat.ChatModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.azure.AzureOpenAiChatModel;
+import org.springframework.web.client.RestTemplate;
+
 
 @Configuration
 public class ChatConfig {
@@ -29,5 +30,10 @@ public class ChatConfig {
                 .deploymentName(deploymentName)
                 .build();
     }
-}
 
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+
+}
